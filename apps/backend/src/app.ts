@@ -30,10 +30,19 @@ app.use("*", (c, next) => {
 
 protectedRoutes.forEach((route) => {
     app.use(route, async (c, next) => {
-        if (!c.env.CLERK_SECRET_KEY) {
-            return c.json({error: "Auth misconfigured.", details: "Missing CLERK_SECRET_KEY."}, 500);
+        if (!c.env.CLERK_SECRET_KEY || !c.env.CLERK_PUBLISHABLE_KEY) {
+            return c.json(
+                {
+                    error: "Auth misconfigured.",
+                    details: "Missing CLERK_SECRET_KEY or CLERK_PUBLISHABLE_KEY."
+                },
+                500
+            );
         }
-        const middleware = clerkMiddleware({secretKey: c.env.CLERK_SECRET_KEY});
+        const middleware = clerkMiddleware({
+            secretKey: c.env.CLERK_SECRET_KEY,
+            publishableKey: c.env.CLERK_PUBLISHABLE_KEY
+        });
         return await middleware(c, next);
     });
 
