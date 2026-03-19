@@ -27,7 +27,7 @@ Minimal, developer-focused MVP that detects recurring subscription payments from
 ### 1) Install dependencies
 
 ```
-npm install
+pnpm install
 ```
 
 ### 2) Configure Cloudflare
@@ -45,10 +45,10 @@ wrangler d1 execute subscription_leak_finder --file packages/db/migrations/0000_
 
 ### 3) Frontend env
 
-Copy the env template and adjust if needed:
+Local dev defaults to `http://localhost:8787` if no env var is set. For Pages (production), set a build env variable:
 
 ```
-Copy-Item apps/frontend/.env.example apps/frontend/.env
+VITE_API_BASE_URL=https://<your-worker>.workers.dev
 ```
 
 ### 4) Run dev servers
@@ -56,16 +56,14 @@ Copy-Item apps/frontend/.env.example apps/frontend/.env
 Backend (Workers):
 
 ```
-npm run dev:backend
+pnpm --filter @slf/backend dev
 ```
 
 Frontend (Vite):
 
 ```
-npm run dev:frontend
+pnpm --filter @slf/frontend dev
 ```
-
-Frontend runs on `http://localhost:5173` and calls the Worker at `http://localhost:8787`.
 
 ## API Endpoints
 

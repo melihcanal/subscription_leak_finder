@@ -3,7 +3,7 @@ main = "src/index.ts"
 compatibility_date = "2026-03-19"
 
 [vars]
-CORS_ORIGIN = "http://localhost:5173"
+CORS_ORIGIN = "https://subscription-leak-finder.pages.dev"
 
 [[d1_databases]]
 binding = "DB"
