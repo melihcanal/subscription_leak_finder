@@ -1,0 +1,25 @@
+{
+  "name": "subscription-leak-finder",
+  "private": true,
+  "version": "0.0.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n backend,frontend -c cyan,magenta \"pnpm --filter @slf/backend dev\" \"pnpm --filter @slf/frontend dev\"",
+    "dev:frontend": "pnpm --filter @slf/frontend dev",
+    "dev:backend": "pnpm --filter @slf/backend dev",
+    "build": "pnpm --filter @slf/frontend build && pnpm --filter @slf/backend build"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.0"
+  },
+  "pnpm": {
+    "approvedBuiltDependencies": [
+      "esbuild",
+      "sharp",
+      "workerd"
+    ]
+  }
+}

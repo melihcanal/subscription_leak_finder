@@ -1,0 +1,68 @@
+# Node modules
+**/node_modules/
+
+# pnpm store (local cache)
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+/.output/
+**/dist/
+
+# Vite cache
+.vite/
+
+# TypeScript
+*.tsbuildinfo
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Environment files
+.env
+.env.*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor directories and files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# Coverage
+coverage/
+
+# Temporary files
+.cache/
+tmp/
+temp/
+
+# Test outputs
+.nyc_output/
+
+# Local DB files
+*.sqlite
+*.db
+
+# Package manager lockfiles (ignore if using pnpm lock in repo -- keep if you commit it)
+package-lock.json
+yarn.lock
+
+# Misc
+/.history/
+node_modules
+.DS_Store
+.env
+.env.*
+*.log
+apps/frontend/dist
+apps/backend/dist
+.wrangler

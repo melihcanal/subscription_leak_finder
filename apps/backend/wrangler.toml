@@ -1,0 +1,15 @@
+name = "subscription-leak-finder"
+main = "src/index.ts"
+compatibility_date = "2026-03-19"
+
+[vars]
+CORS_ORIGIN = "http://localhost:5173"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "subscription_leak_finder"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+
+[[r2_buckets]]
+binding = "UPLOADS"
+bucket_name = "subscription-leak-finder-uploads"
