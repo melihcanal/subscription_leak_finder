@@ -12,7 +12,7 @@ function formatCurrency(value: number): string {
   }).format(value);
 }
 
-export default function SubscriptionCard({ subscription }: SubscriptionCardProps) {
+export default function SubscriptionCard({ subscription }: Readonly<SubscriptionCardProps>) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="flex items-start justify-between gap-6">

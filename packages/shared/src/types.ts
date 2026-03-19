@@ -38,8 +38,6 @@ export type SubscriptionsResponse = {
   subscriptions: DetectedSubscription[];
 };
 
-export type SummaryResponse = SubscriptionSummary;
-
 export type ApiError = {
   error: string;
   details?: string;

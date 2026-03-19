@@ -12,7 +12,7 @@ type SummaryCardProps = {
   summary: SubscriptionSummary;
 };
 
-export default function SummaryCard({ summary }: SummaryCardProps) {
+export default function SummaryCard({ summary }: Readonly<SummaryCardProps>) {
   return (
     <div className="rounded-2xl border border-ink bg-ink p-6 text-white shadow-soft">
       <p className="text-xs font-mono uppercase tracking-[0.3em] text-white/60">Monthly spend</p>

@@ -20,6 +20,11 @@ type AmountCluster = {
   transactions: NormalizedTransaction[];
 };
 
+type IntervalStats = {
+  intervals: number[];
+  average: number;
+};
+
 const DEFAULT_OPTIONS: Required<DetectionOptions> = {
   amountTolerance: 0.05,
   minOccurrences: 2,
@@ -85,42 +90,105 @@ function groupByMerchant(
   return groups;
 }
 
+function sumAbsoluteAmounts(transactions: NormalizedTransaction[]): number {
+  return transactions.reduce((sum, item) => sum + Math.abs(item.amount), 0);
+}
+
+function updateClusterAverage(cluster: AmountCluster): void {
+  const total = sumAbsoluteAmounts(cluster.transactions);
+  cluster.average = total / cluster.transactions.length;
+}
+
+function findMatchingCluster(clusters: AmountCluster[], amount: number, tolerance: number): AmountCluster | null {
+  for (const cluster of clusters) {
+    const diff = Math.abs(amount - cluster.average);
+    if (diff <= cluster.average * tolerance) {
+      return cluster;
+    }
+  }
+  return null;
+}
+
 function clusterByAmount(transactions: NormalizedTransaction[], tolerance: number): AmountCluster[] {
   const clusters: AmountCluster[] = [];
 
   for (const transaction of transactions) {
     const amount = Math.abs(transaction.amount);
-    let target: AmountCluster | null = null;
+    const match = findMatchingCluster(clusters, amount, tolerance);
 
-    for (const cluster of clusters) {
-      const diff = Math.abs(amount - cluster.average);
-      if (diff <= cluster.average * tolerance) {
-        target = cluster;
-        break;
-      }
-    }
-
-    if (!target) {
-      clusters.push({ average: amount, transactions: [transaction] });
+    if (match) {
+      match.transactions.push(transaction);
+      updateClusterAverage(match);
     } else {
-      target.transactions.push(transaction);
-      const total = target.transactions.reduce((sum, item) => sum + Math.abs(item.amount), 0);
-      target.average = total / target.transactions.length;
+      clusters.push({ average: amount, transactions: [transaction] });
     }
   }
 
   return clusters;
 }
 
-function averageIntervals(dates: Date[]): { intervals: number[]; average: number } {
+function averageIntervals(dates: Date[]): IntervalStats {
   const intervals: number[] = [];
-  for (let i = 1; i < dates.length; i += 1) {
+  for (let i = 1; i < dates.length; i++) {
     const diff = Math.round((dates[i].getTime() - dates[i - 1].getTime()) / MS_PER_DAY);
     intervals.push(diff);
   }
   const total = intervals.reduce((sum, value) => sum + value, 0);
   const average = intervals.length === 0 ? 0 : total / intervals.length;
   return { intervals, average };
+}
+
+function hasMonthlyPattern(intervals: number[], options: Required<DetectionOptions>): boolean {
+  if (intervals.length === 0) {
+    return false;
+  }
+  const matching = intervals.filter(
+    (interval) => interval >= options.minIntervalDays && interval <= options.maxIntervalDays
+  );
+  const matchRatio = matching.length / intervals.length;
+  return matchRatio >= options.intervalMatchRatio;
+}
+
+function sortByDate(transactions: NormalizedTransaction[]): NormalizedTransaction[] {
+  return [...transactions].sort((a, b) => a.date.getTime() - b.date.getTime());
+}
+
+function buildSubscription(
+  group: MerchantGroup,
+  cluster: AmountCluster,
+  settings: Required<DetectionOptions>,
+  now: Date
+): DetectedSubscription | null {
+  if (cluster.transactions.length < settings.minOccurrences) {
+    return null;
+  }
+
+  const sorted = sortByDate(cluster.transactions);
+  const dates = sorted.map((transaction) => transaction.date);
+  const { intervals, average } = averageIntervals(dates);
+  if (!hasMonthlyPattern(intervals, settings)) {
+    return null;
+  }
+
+  const avgAmount = cluster.average;
+  const frequencyDays = Math.max(1, Math.round(average));
+  const lastPayment = sorted.at(-1);
+  if (!lastPayment) {
+    return null;
+  }
+
+  const daysSinceLast = Math.round((now.getTime() - lastPayment.date.getTime()) / MS_PER_DAY);
+  const monthlyCost = avgAmount * (30 / frequencyDays);
+
+  return {
+    merchantName: group.display,
+    avgAmount: roundTo(avgAmount, 2),
+    frequencyDays,
+    lastPaymentDate: lastPayment.dateIso,
+    monthlyCost: roundTo(monthlyCost, 2),
+    occurrences: sorted.length,
+    isPotentiallyUnnecessary: daysSinceLast > frequencyDays * 1.5
+  };
 }
 
 export function detectSubscriptions(
@@ -135,42 +203,11 @@ export function detectSubscriptions(
 
   for (const group of merchantGroups) {
     const clusters = clusterByAmount(group.transactions, settings.amountTolerance);
-
     for (const cluster of clusters) {
-      if (cluster.transactions.length < settings.minOccurrences) {
-        continue;
+      const subscription = buildSubscription(group, cluster, settings, now);
+      if (subscription) {
+        subscriptions.push(subscription);
       }
-
-      const sorted = [...cluster.transactions].sort((a, b) => a.date.getTime() - b.date.getTime());
-      const dates = sorted.map((transaction) => transaction.date);
-      const { intervals, average } = averageIntervals(dates);
-      if (intervals.length === 0) {
-        continue;
-      }
-
-      const matching = intervals.filter(
-        (interval) => interval >= settings.minIntervalDays && interval <= settings.maxIntervalDays
-      );
-      const matchRatio = matching.length / intervals.length;
-      if (matchRatio < settings.intervalMatchRatio) {
-        continue;
-      }
-
-      const avgAmount = cluster.average;
-      const frequencyDays = Math.max(1, Math.round(average));
-      const lastPayment = sorted[sorted.length - 1];
-      const daysSinceLast = Math.round((now.getTime() - lastPayment.date.getTime()) / MS_PER_DAY);
-      const monthlyCost = avgAmount * (30 / frequencyDays);
-
-      subscriptions.push({
-        merchantName: group.display,
-        avgAmount: roundTo(avgAmount, 2),
-        frequencyDays,
-        lastPaymentDate: lastPayment.dateIso,
-        monthlyCost: roundTo(monthlyCost, 2),
-        occurrences: sorted.length,
-        isPotentiallyUnnecessary: daysSinceLast > frequencyDays * 1.5
-      });
     }
   }
 
