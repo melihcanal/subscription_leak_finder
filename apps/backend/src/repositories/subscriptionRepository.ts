@@ -1,68 +1,69 @@
-import { desc, eq, sql } from "drizzle-orm";
-import { subscriptions } from "../../../../packages/db/src/schema";
-import type { DetectedSubscription, SubscriptionSummary } from "@slf/shared";
-import type { DbClient } from "../lib/db";
-
-export type SubscriptionRecord = typeof subscriptions.$inferSelect;
+import {and, desc, eq, sql} from "drizzle-orm";
+import type {DetectedSubscription, SubscriptionSummary} from "@slf/shared";
+import {subscriptions} from "@slf/db";
+import type {DbClient} from "../lib/db";
 
 export class SubscriptionRepository {
-  constructor(private readonly db: DbClient) {}
-
-  async insertMany(uploadId: string, items: DetectedSubscription[]): Promise<void> {
-    if (items.length === 0) {
-      return;
+    constructor(private readonly db: DbClient) {
     }
 
-    const createdAt = new Date().toISOString();
-    const payload = items.map((item) => ({
-      id: crypto.randomUUID(),
-      uploadId,
-      merchantName: item.merchantName,
-      avgAmount: item.avgAmount,
-      frequencyDays: item.frequencyDays,
-      lastPaymentDate: item.lastPaymentDate,
-      monthlyCost: item.monthlyCost,
-      occurrences: item.occurrences,
-      isPotentiallyUnnecessary: item.isPotentiallyUnnecessary ? 1 : 0,
-      createdAt
-    }));
+    async insertMany(uploadId: string, userId: string, items: DetectedSubscription[]): Promise<void> {
+        if (items.length === 0) {
+            return;
+        }
 
-    await this.db.insert(subscriptions).values(payload).run();
-  }
+        for (const item of items) {
+            await this.db.insert(subscriptions).values({
+                id: crypto.randomUUID(),
+                uploadId,
+                userId,
+                merchantName: item.merchantName,
+                avgAmount: item.avgAmount,
+                frequencyDays: item.frequencyDays,
+                lastPaymentDate: item.lastPaymentDate,
+                monthlyCost: item.monthlyCost,
+                occurrences: item.occurrences,
+                isPotentiallyUnnecessary: item.isPotentiallyUnnecessary ? 1 : 0,
+                createdAt: new Date().toISOString()
+            }).run();
+        }
+    }
 
-  async listByUpload(uploadId: string): Promise<DetectedSubscription[]> {
-    const rows = await this.db
-      .select()
-      .from(subscriptions)
-      .where(eq(subscriptions.uploadId, uploadId))
-      .orderBy(desc(subscriptions.monthlyCost))
-      .all();
+    async listByUpload(uploadId: string, userId: string): Promise<DetectedSubscription[]> {
+        const rows = await this.db
+            .select()
+            .from(subscriptions)
+            .where(and(eq(subscriptions.uploadId, uploadId), eq(subscriptions.userId, userId)))
+            .orderBy(desc(subscriptions.monthlyCost))
+            .all();
 
-    return rows.map((row) => ({
-      merchantName: row.merchantName,
-      avgAmount: row.avgAmount,
-      frequencyDays: row.frequencyDays,
-      lastPaymentDate: row.lastPaymentDate,
-      monthlyCost: row.monthlyCost,
-      occurrences: row.occurrences,
-      isPotentiallyUnnecessary: row.isPotentiallyUnnecessary === 1
-    }));
-  }
+        return rows.map((row) => ({
+            merchantName: row.merchantName,
+            avgAmount: row.avgAmount,
+            frequencyDays: row.frequencyDays,
+            lastPaymentDate: row.lastPaymentDate,
+            monthlyCost: row.monthlyCost,
+            occurrences: row.occurrences,
+            isPotentiallyUnnecessary: row.isPotentiallyUnnecessary === 1
+        }));
+    }
 
-  async summaryByUpload(uploadId: string): Promise<SubscriptionSummary> {
-    const rows = await this.db
-      .select({
-        totalMonthlyCost: sql<number>`COALESCE(SUM(${subscriptions.monthlyCost}), 0)`,
-        subscriptionCount: sql<number>`COUNT(${subscriptions.id})`
-      })
-      .from(subscriptions)
-      .where(eq(subscriptions.uploadId, uploadId))
-      .all();
+    async summaryByUpload(uploadId: string, userId: string): Promise<SubscriptionSummary> {
+        const rows = await this.db
+            .select({
+                totalMonthlyCost: sql<number>`SUM(
+                ${subscriptions.monthlyCost}
+                )`,
+                subscriptionCount: sql<number>`COUNT(*)`
+            })
+            .from(subscriptions)
+            .where(and(eq(subscriptions.uploadId, uploadId), eq(subscriptions.userId, userId)))
+            .all();
 
-    const row = rows[0];
-    return {
-      totalMonthlyCost: Number(row?.totalMonthlyCost ?? 0),
-      subscriptionCount: Number(row?.subscriptionCount ?? 0)
-    };
-  }
+        const summary = rows[0];
+        return {
+            totalMonthlyCost: Number(summary?.totalMonthlyCost ?? 0),
+            subscriptionCount: Number(summary?.subscriptionCount ?? 0)
+        };
+    }
 }

@@ -13,12 +13,24 @@ bucket_name = "subscription-leak-finder-uploads"
 
 [env.dev.vars]
 CORS_ORIGIN = "http://localhost:5173"
+CLERK_PUBLISHABLE_KEY = "pk_test_ZW5qb3llZC1iZWUtMi5jbGVyay5hY2NvdW50cy5kZXYk"
+
+[[env.dev.d1_databases]]
+binding = "DB"
+database_name = "subscription_leak_finder"
+database_id = "eeb1daad-be8e-48fd-b5ea-ad1b6234ff44"
+
+[[env.dev.r2_buckets]]
+binding = "UPLOADS"
+bucket_name = "subscription-leak-finder-uploads"
 
 [env.production]
+name = "subscription-leak-finder"
 workers_dev = true
 
 [env.production.vars]
 CORS_ORIGIN = "https://subscription-leak-finder.pages.dev"
+CLERK_PUBLISHABLE_KEY = "pk_test_ZW5qb3llZC1iZWUtMi5jbGVyay5hY2NvdW50cy5kZXYk"
 
 [[env.production.d1_databases]]
 binding = "DB"

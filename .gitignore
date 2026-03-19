@@ -55,9 +55,8 @@ yarn.lock
 # Misc
 /.history/
 node_modules
-.DS_Store
-*.log
 apps/frontend/dist
 apps/backend/dist
 .wrangler
 .corepack/
+apps/backend/.dev.vars
