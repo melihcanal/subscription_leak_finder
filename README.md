@@ -1,25 +1,24 @@
 # Subscription Leak Finder
 
-Minimal, developer-focused MVP that detects recurring subscription payments from bank CSVs, stores uploads in R2, and
-surfaces monthly cost.
+Subscription Leak Finder analyzes bank transaction CSV files, detects recurring subscription payments, and highlights
+monthly spending in a simple dashboard.
 
-## Stack
+## Tech Stack
 
-- Frontend: React + Vite + TypeScript + **HeroUI**
-- Auth: **Clerk** (frontend + backend)
-- Backend: **Hono** on Cloudflare Workers
-- Database: Cloudflare D1 (SQLite) via Drizzle ORM
+- Frontend: React, Vite, TypeScript, HeroUI
+- Auth: Clerk
+- Backend: Hono on Cloudflare Workers
+- Database: Cloudflare D1
 - Storage: Cloudflare R2
+- Data fetching: Ky and TanStack Query
 - Validation: Zod
-- State management: TanStack Query
-- HTTP client: **Ky**
 
 ## Project Structure
 
-```
+```text
 /apps
-  /frontend
   /backend
+  /frontend
 /packages
   /db
   /shared
@@ -28,177 +27,156 @@ surfaces monthly cost.
 ## Prerequisites
 
 - Node.js 22+
-- pnpm (via corepack)
-- Cloudflare account with Workers, D1, R2 enabled
-- Clerk account
+- pnpm
+- A Cloudflare account
+- A Clerk account
 
-## 1) Install Dependencies
+## 1. Install dependencies
 
-```
+```bash
 corepack enable
 pnpm install
 ```
 
-## 2) Create Cloudflare Resources
+## 2. Create Cloudflare resources
 
-Create a D1 database and an R2 bucket in the Cloudflare dashboard (or via Wrangler).
+Create these resources in Cloudflare:
 
-Example names used below:
+- One D1 database
+- One R2 bucket
+
+Example names:
 
 - D1: `subscription_leak_finder`
 - R2: `subscription-leak-finder-uploads`
 
-## 3) Configure Backend (Wrangler)
-
-Update `apps/backend/wrangler.toml` with your real IDs:
+After creating them, update [wrangler.toml](D:\Code_Projects\subscription_leak_finder\apps\backend\wrangler.toml) with
+your real values:
 
 - `database_id`
 - `bucket_name`
 
-Set your frontend origin for CORS:
+## 3. Create a Clerk application
 
+Create a new Clerk application from the Clerk dashboard.
+
+You will need two keys:
+
+- Publishable Key: `pk_...`
+- Secret Key: `sk_...`
+
+## 4. Configure frontend environment variables
+
+Add these values to [apps/frontend/.env](D:\Code_Projects\subscription_leak_finder\apps\frontend\.env):
+
+```bash
+VITE_API_BASE_URL=http://localhost:8787
+VITE_API_TIMEOUT_MS=120000
+VITE_CLERK_PUBLISHABLE_KEY=pk_...
 ```
-CORS_ORIGIN = "http://localhost:5173"
+
+For production, add the same values to Cloudflare Pages environment variables:
+
+```bash
+VITE_API_BASE_URL=https://<your-worker>.workers.dev
+VITE_API_TIMEOUT_MS=120000
+VITE_CLERK_PUBLISHABLE_KEY=pk_...
 ```
 
-## 4) Clerk Setup
+## 5. Configure backend local secrets
 
-Create a Clerk application and copy:
+Add these values to [apps/backend/.dev.vars](D:\Code_Projects\subscription_leak_finder\apps\backend\.dev.vars):
 
-- **Publishable Key** � used by frontend (`@clerk/react`)
-- **Secret Key** � used by backend
-
-### Backend (Workers)
-
-Store the secret key as a Wrangler secret:
-
+```bash
+CLERK_SECRET_KEY=sk_...
+CLERK_PUBLISHABLE_KEY=pk_...
 ```
-pnpm --filter @slf/backend exec wrangler secret put CLERK_SECRET_KEY --env dev
+
+## 6. Configure backend production secrets
+
+Add the Clerk secret key to the production Worker:
+
+```bash
 pnpm --filter @slf/backend exec wrangler secret put CLERK_SECRET_KEY --env production
 ```
 
-### Frontend (Vite)
+When prompted, paste your `sk_...` value.
 
-Set this in `apps/frontend/.env` (local) and in Cloudflare Pages environment variables (prod):
+`CLERK_PUBLISHABLE_KEY` is not a secret. Define it
+in [wrangler.toml](D:\Code_Projects\subscription_leak_finder\apps\backend\wrangler.toml) under the production vars
+section.
 
-```
-VITE_CLERK_PUBLISHABLE_KEY=pk_...
-```
+## 7. Run the D1 migration
 
-## 5) Run D1 Migrations
+For the remote production database:
 
-### Remote (production D1)
-
-```
+```bash
 pnpm --filter @slf/backend exec wrangler d1 execute subscription_leak_finder --remote --file ../../packages/db/migrations/0000_init.sql
 ```
 
-### Local (Wrangler dev D1)
+For the local development database:
 
-```
+```bash
 pnpm --filter @slf/backend exec wrangler d1 execute subscription_leak_finder --file ../../packages/db/migrations/0000_init.sql
 ```
 
-> If you previously created tables without `user_id`, recreate the DB or drop tables and re-run the migration.
+## 8. Start the app locally
 
-## 6) Local Development
+Start the backend:
 
-### Backend (Workers)
-
-```
+```bash
 pnpm --filter @slf/backend dev
 ```
 
-### Frontend (Vite)
+Start the frontend:
 
-```
+```bash
 pnpm --filter @slf/frontend dev
 ```
 
-### Or run both at once
+Or run both together:
 
-```
+```bash
 pnpm dev
 ```
 
-Frontend runs at `http://localhost:5173` and calls the Worker at `http://localhost:8787`.
+Local URLs:
 
-## 7) Production Environment Variables (Frontend)
+- Frontend: `http://localhost:5173`
+- Backend: `http://localhost:8787`
 
-Set this in **Cloudflare Pages � Settings � Environment variables**:
+## 9. Build the project
 
+```bash
+pnpm --filter @slf/frontend build
+pnpm --filter @slf/backend build
 ```
-VITE_API_BASE_URL=https://<your-worker>.workers.dev
-VITE_CLERK_PUBLISHABLE_KEY=pk_...
-```
 
-## 8) Deploy Backend (Workers)
+## 10. Deploy the backend
 
-```
+```bash
 pnpm --filter @slf/backend exec wrangler deploy --env production
 ```
 
-## 9) Deploy Frontend (Pages)
+## 11. Deploy the frontend
 
-Create a Pages project with:
+Create a Cloudflare Pages project and use these settings:
 
-- **Build command**:
-  ```
-  pnpm --filter @slf/frontend build
-  ```
-- **Build output directory**:
-  ```
-  apps/frontend/dist
-  ```
-- **Root directory**:
-  ```
-  /
-  ```
+- Build command: `pnpm --filter @slf/frontend build`
+- Build output directory: `apps/frontend/dist`
+- Root directory: `/`
 
-## API Endpoints
+Make sure these Pages environment variables are defined:
 
-All endpoints are protected by Clerk auth.
-
-- `POST /upload` (multipart/form-data, field: `file`)
-- `GET /subscriptions`
-- `GET /summary`
-- `GET /health`
-
-## CSV Format
-
-Required columns:
-
-```
-date, description, amount
+```bash
+VITE_API_BASE_URL=https://<your-worker>.workers.dev
+VITE_API_TIMEOUT_MS=120000
+VITE_CLERK_PUBLISHABLE_KEY=pk_...
 ```
 
-## Detection Rules
+## 12. Use the app
 
-The recurring detection is rule-based:
-
-- Merchant similarity (token-based)
-- Amount tolerance �5%
-- Repeats at least 2 times
-- Monthly interval between 25�35 days
-
-## Troubleshooting
-
-### D1_ERROR: no such table
-
-Run the migration again (remote):
-
-```
-pnpm --filter @slf/backend exec wrangler d1 execute subscription_leak_finder --remote --file ../../packages/db/migrations/0000_init.sql
-```
-
-### Local D1 missing tables
-
-Run without `--remote` (local):
-
-```
-pnpm --filter @slf/backend exec wrangler d1 execute subscription_leak_finder --file ../../packages/db/migrations/0000_init.sql
-```
-
----
-
-If anything is unclear or breaks, ping me with the exact command and output.
+1. Open the frontend app.
+2. Sign up or sign in with Clerk.
+3. Upload a CSV file.
+4. Review detected subscriptions and total monthly cost on the dashboard.
