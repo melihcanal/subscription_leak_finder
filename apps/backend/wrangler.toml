@@ -8,7 +8,7 @@ CORS_ORIGIN = "http://localhost:5173"
 [[d1_databases]]
 binding = "DB"
 database_name = "subscription_leak_finder"
-database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+database_id = "eeb1daad-be8e-48fd-b5ea-ad1b6234ff44"
 
 [[r2_buckets]]
 binding = "UPLOADS"
