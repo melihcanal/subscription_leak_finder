@@ -2,9 +2,6 @@ name = "subscription-leak-finder"
 main = "src/index.ts"
 compatibility_date = "2026-03-19"
 
-[env.production]
-workers_dev = true
-
 [[d1_databases]]
 binding = "DB"
 database_name = "subscription_leak_finder"
@@ -17,5 +14,17 @@ bucket_name = "subscription-leak-finder-uploads"
 [env.dev.vars]
 CORS_ORIGIN = "http://localhost:5173"
 
+[env.production]
+workers_dev = true
+
 [env.production.vars]
 CORS_ORIGIN = "https://subscription-leak-finder.pages.dev"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "subscription_leak_finder"
+database_id = "eeb1daad-be8e-48fd-b5ea-ad1b6234ff44"
+
+[[env.production.r2_buckets]]
+binding = "UPLOADS"
+bucket_name = "subscription-leak-finder-uploads"
