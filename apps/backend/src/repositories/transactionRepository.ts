@@ -11,17 +11,17 @@ export class TransactionRepository {
             return;
         }
 
-        const rows = items.map((item) => ({
-            id: crypto.randomUUID(),
-            uploadId,
-            userId,
-            date: item.dateIso,
-            description: item.description,
-            merchant: item.merchant,
-            amount: item.amount,
-            createdAt: new Date().toISOString()
-        }));
-
-        await this.db.insert(transactions).values(rows).run();
+        for (const item of items) {
+            await this.db.insert(transactions).values({
+                id: crypto.randomUUID(),
+                uploadId,
+                userId,
+                date: item.dateIso,
+                description: item.description,
+                merchant: item.merchant,
+                amount: item.amount,
+                createdAt: new Date().toISOString()
+            }).run();
+        }
     }
 }

@@ -12,21 +12,21 @@ export class SubscriptionRepository {
             return;
         }
 
-        const rows = items.map((item) => ({
-            id: crypto.randomUUID(),
-            uploadId,
-            userId,
-            merchantName: item.merchantName,
-            avgAmount: item.avgAmount,
-            frequencyDays: item.frequencyDays,
-            lastPaymentDate: item.lastPaymentDate,
-            monthlyCost: item.monthlyCost,
-            occurrences: item.occurrences,
-            isPotentiallyUnnecessary: item.isPotentiallyUnnecessary ? 1 : 0,
-            createdAt: new Date().toISOString()
-        }));
-
-        await this.db.insert(subscriptions).values(rows).run();
+        for (const item of items) {
+            await this.db.insert(subscriptions).values({
+                id: crypto.randomUUID(),
+                uploadId,
+                userId,
+                merchantName: item.merchantName,
+                avgAmount: item.avgAmount,
+                frequencyDays: item.frequencyDays,
+                lastPaymentDate: item.lastPaymentDate,
+                monthlyCost: item.monthlyCost,
+                occurrences: item.occurrences,
+                isPotentiallyUnnecessary: item.isPotentiallyUnnecessary ? 1 : 0,
+                createdAt: new Date().toISOString()
+            }).run();
+        }
     }
 
     async listByUpload(uploadId: string, userId: string): Promise<DetectedSubscription[]> {
