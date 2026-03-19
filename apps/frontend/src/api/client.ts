@@ -2,9 +2,11 @@ import ky, {HTTPError} from "ky";
 import type {ApiError, DetectedSubscription, SubscriptionSummary, UploadResponse} from "@slf/shared";
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8787";
+const REQUEST_TIMEOUT_MS = Number(import.meta.env.VITE_API_TIMEOUT_MS ?? "120000");
 
 const api = ky.create({
-    prefixUrl: API_BASE_URL
+    prefixUrl: API_BASE_URL,
+    timeout: REQUEST_TIMEOUT_MS
 });
 
 function authHeaders(token?: string): Record<string, string> | undefined {

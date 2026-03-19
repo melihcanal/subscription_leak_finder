@@ -21,7 +21,7 @@ export default function SubscriptionCard({subscription}: Readonly<SubscriptionCa
                     <div>
                         <h3 className="text-lg font-semibold text-ink">{subscription.merchantName}</h3>
                         <p className="mt-1 text-sm text-slate-500">
-                            Avg payment {formatCurrency(subscription.avgAmount)} �
+                            Avg payment {formatCurrency(subscription.avgAmount)} |
                             every {subscription.frequencyDays} days
                         </p>
                     </div>
