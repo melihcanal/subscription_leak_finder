@@ -1,61 +1,104 @@
-import { useQuery } from "@tanstack/react-query";
-import { fetchSubscriptions, fetchSummary } from "../api/client";
+import {useQuery} from "@tanstack/react-query";
+import {useAuth} from "@clerk/react";
+import {Button, Card, CardBody} from "@heroui/react";
+import {Link as RouterLink} from "react-router-dom";
+import {fetchSubscriptions, fetchSummary} from "../api/client";
 import SubscriptionCard from "../components/SubscriptionCard";
 import SummaryCard from "../components/SummaryCard";
 
 export default function DashboardPage() {
-  const summaryQuery = useQuery({ queryKey: ["summary"], queryFn: fetchSummary });
-  const subscriptionsQuery = useQuery({
-    queryKey: ["subscriptions"],
-    queryFn: fetchSubscriptions
+  const {getToken, isSignedIn, isLoaded} = useAuth();
+
+  const summaryQuery = useQuery({
+    queryKey: ["summary"],
+    queryFn: async () => {
+      const token = await getToken();
+      if (!token) {
+        throw new Error("Authentication required.");
+      }
+      return fetchSummary(token);
+    },
+    enabled: isSignedIn
   });
 
-  if (summaryQuery.isLoading || subscriptionsQuery.isLoading) {
+  const subscriptionsQuery = useQuery({
+    queryKey: ["subscriptions"],
+    queryFn: async () => {
+      const token = await getToken();
+      if (!token) {
+        throw new Error("Authentication required.");
+      }
+      return fetchSubscriptions(token);
+    },
+    enabled: isSignedIn
+  });
+
+  if (!isLoaded) {
     return (
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
-        Loading dashboard...
-      </div>
+        <Card className="border border-slate-200">
+          <CardBody className="text-sm text-slate-500">Loading session...</CardBody>
+        </Card>
     );
   }
 
-  if (summaryQuery.isError || subscriptionsQuery.isError) {
-    const error = (summaryQuery.error || subscriptionsQuery.error) as Error;
+  if (!isSignedIn) {
     return (
-      <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-600">
-        {error.message}
-      </div>
+        <Card className="border border-slate-200">
+          <CardBody className="space-y-4">
+            <p className="text-sm text-slate-500">Sign in to view your dashboard.</p>
+            <Button as={RouterLink} to="/sign-in" color="primary">
+              Sign in
+            </Button>
+          </CardBody>
+        </Card>
     );
   }
-
-  const summary = summaryQuery.data ?? { totalMonthlyCost: 0, subscriptionCount: 0 };
-  const subscriptions = subscriptionsQuery.data ?? [];
 
   return (
     <div className="space-y-6">
-      <SummaryCard summary={summary} />
+      {summaryQuery.isLoading || subscriptionsQuery.isLoading ? (
+          <Card className="border border-slate-200">
+            <CardBody className="text-sm text-slate-500">Loading dashboard...</CardBody>
+          </Card>
+      ) : null}
 
-      <section className="rounded-3xl border border-slate-200 bg-white p-8">
-        <div className="flex items-start justify-between gap-6">
-          <div>
-            <h2 className="text-xl font-semibold text-ink">Recurring subscriptions</h2>
-            <p className="mt-2 text-sm text-slate-500">
-              Focus on the ones you no longer need. Potentially unnecessary items are flagged.
-            </p>
-          </div>
-        </div>
+      {(summaryQuery.isError || subscriptionsQuery.isError) && (
+          <Card className="border border-rose-200 bg-rose-50">
+            <CardBody className="text-sm text-rose-600">
+              {((summaryQuery.error || subscriptionsQuery.error) as Error).message}
+            </CardBody>
+          </Card>
+      )}
 
-        <div className="mt-6 space-y-4">
-          {subscriptions.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-sm text-slate-500">
-              No subscriptions detected yet. Upload a CSV to get started.
-            </div>
-          ) : (
-            subscriptions.map((subscription) => (
-              <SubscriptionCard key={`${subscription.merchantName}-${subscription.lastPaymentDate}`} subscription={subscription} />
-            ))
-          )}
-        </div>
-      </section>
+      {!summaryQuery.isLoading && !subscriptionsQuery.isLoading && !summaryQuery.isError && !subscriptionsQuery.isError && (
+          <>
+            <SummaryCard summary={summaryQuery.data ?? {totalMonthlyCost: 0, subscriptionCount: 0}}/>
+
+            <Card className="border border-slate-200">
+              <CardBody className="space-y-4">
+                <div>
+                  <h2 className="text-xl font-semibold text-ink">Recurring subscriptions</h2>
+                  <p className="mt-2 text-sm text-slate-500">
+                    Focus on the ones you no longer need. Potentially unnecessary items are flagged.
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  {(subscriptionsQuery.data ?? []).length === 0 ? (
+                      <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-sm text-slate-500">
+                        No subscriptions detected yet. Upload a CSV to get started.
+                      </div>
+                  ) : (
+                      subscriptionsQuery.data!.map((subscription) => (
+                          <SubscriptionCard key={`${subscription.merchantName}-${subscription.lastPaymentDate}`}
+                                            subscription={subscription}/>
+                      ))
+                  )}
+                </div>
+              </CardBody>
+            </Card>
+          </>
+      )}
     </div>
   );
 }

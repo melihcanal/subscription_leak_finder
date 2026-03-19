@@ -1,39 +1,45 @@
-import type {
-  ApiError,
-  DetectedSubscription,
-  SubscriptionSummary,
-  UploadResponse
-} from "@slf/shared";
+import ky, {HTTPError} from "ky";
+import type {ApiError, DetectedSubscription, SubscriptionSummary, UploadResponse} from "@slf/shared";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8787";
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8787";
 
-async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, options);
-  const text = await response.text();
-  const data = text ? (JSON.parse(text) as T | ApiError) : ({} as T);
+const api = ky.create({
+    prefixUrl: API_BASE_URL
+});
 
-  if (!response.ok) {
-    const error = data as ApiError;
-    throw new Error(error?.details || error?.error || "Request failed");
-  }
-
-  return data as T;
+function authHeaders(token?: string): Record<string, string> | undefined {
+    if (!token) {
+        return undefined;
+    }
+    return {Authorization: `Bearer ${token}`};
 }
 
-export async function uploadCsv(file: File): Promise<UploadResponse> {
-  const formData = new FormData();
-  formData.append("file", file);
-  return apiFetch<UploadResponse>("/upload", {
-    method: "POST",
-    body: formData
-  });
+async function wrapKy<T>(promise: Promise<T>): Promise<T> {
+    try {
+        return await promise;
+    } catch (error) {
+        if (error instanceof HTTPError) {
+            const data = (await error.response.json().catch(() => null)) as ApiError | null;
+            const message = data?.details || data?.error || error.message;
+            throw new Error(message);
+        }
+        throw error;
+    }
 }
 
-export async function fetchSubscriptions(): Promise<DetectedSubscription[]> {
-  const data = await apiFetch<{ subscriptions: DetectedSubscription[] }>("/subscriptions");
-  return data.subscriptions;
+export async function uploadCsv(file: File, token: string): Promise<UploadResponse> {
+    const formData = new FormData();
+    formData.append("file", file);
+    return wrapKy(api.post("upload", {body: formData, headers: authHeaders(token)}).json<UploadResponse>());
 }
 
-export async function fetchSummary(): Promise<SubscriptionSummary> {
-  return apiFetch<SubscriptionSummary>("/summary");
+export async function fetchSubscriptions(token: string): Promise<DetectedSubscription[]> {
+    const data = await wrapKy(api.get("subscriptions", {headers: authHeaders(token)}).json<{
+        subscriptions: DetectedSubscription[]
+    }>());
+    return data.subscriptions;
+}
+
+export async function fetchSummary(token: string): Promise<SubscriptionSummary> {
+    return wrapKy(api.get("summary", {headers: authHeaders(token)}).json<SubscriptionSummary>());
 }

@@ -1,15 +1,18 @@
 # Subscription Leak Finder
 
-Minimal, developer?focused MVP that detects recurring subscription payments from bank CSVs, stores uploads in R2, and surfaces monthly cost.
+Minimal, developer-focused MVP that detects recurring subscription payments from bank CSVs, stores uploads in R2, and
+surfaces monthly cost.
 
 ## Stack
 
-- Frontend: React + Vite + TypeScript + TailwindCSS
-- Backend: Cloudflare Workers (TypeScript)
+- Frontend: React + Vite + TypeScript + **HeroUI**
+- Auth: **Clerk** (frontend + backend)
+- Backend: **Hono** on Cloudflare Workers
 - Database: Cloudflare D1 (SQLite) via Drizzle ORM
 - Storage: Cloudflare R2
 - Validation: Zod
-- State management: React Query
+- State management: TanStack Query
+- HTTP client: **Ky**
 
 ## Project Structure
 
@@ -27,6 +30,7 @@ Minimal, developer?focused MVP that detects recurring subscription payments from
 - Node.js 22+
 - pnpm (via corepack)
 - Cloudflare account with Workers, D1, R2 enabled
+- Clerk account
 
 ## 1) Install Dependencies
 
@@ -51,13 +55,39 @@ Update `apps/backend/wrangler.toml` with your real IDs:
 - `database_id`
 - `bucket_name`
 
-The file already contains example bindings and environments.
+Set your frontend origin for CORS:
 
-## 4) Run D1 Migrations
+```
+CORS_ORIGIN = "http://localhost:5173"
+```
+
+## 4) Clerk Setup
+
+Create a Clerk application and copy:
+
+- **Publishable Key** � used by frontend (`@clerk/react`)
+- **Secret Key** � used by backend
+
+### Backend (Workers)
+
+Store the secret key as a Wrangler secret:
+
+```
+pnpm --filter @slf/backend exec wrangler secret put CLERK_SECRET_KEY --env dev
+pnpm --filter @slf/backend exec wrangler secret put CLERK_SECRET_KEY --env production
+```
+
+### Frontend (Vite)
+
+Set this in `apps/frontend/.env` (local) and in Cloudflare Pages environment variables (prod):
+
+```
+VITE_CLERK_PUBLISHABLE_KEY=pk_...
+```
+
+## 5) Run D1 Migrations
 
 ### Remote (production D1)
-
-Run once to create tables in your D1 database:
 
 ```
 pnpm --filter @slf/backend exec wrangler d1 execute subscription_leak_finder --remote --file ../../packages/db/migrations/0000_init.sql
@@ -65,13 +95,13 @@ pnpm --filter @slf/backend exec wrangler d1 execute subscription_leak_finder --r
 
 ### Local (Wrangler dev D1)
 
-Create the same tables in your local D1 for development:
-
 ```
 pnpm --filter @slf/backend exec wrangler d1 execute subscription_leak_finder --file ../../packages/db/migrations/0000_init.sql
 ```
 
-## 5) Local Development
+> If you previously created tables without `user_id`, recreate the DB or drop tables and re-run the migration.
+
+## 6) Local Development
 
 ### Backend (Workers)
 
@@ -93,21 +123,22 @@ pnpm dev
 
 Frontend runs at `http://localhost:5173` and calls the Worker at `http://localhost:8787`.
 
-## 6) Production Environment Variables (Frontend)
+## 7) Production Environment Variables (Frontend)
 
-Set this in **Cloudflare Pages ? Settings ? Environment variables**:
+Set this in **Cloudflare Pages � Settings � Environment variables**:
 
 ```
 VITE_API_BASE_URL=https://<your-worker>.workers.dev
+VITE_CLERK_PUBLISHABLE_KEY=pk_...
 ```
 
-## 7) Deploy Backend (Workers)
+## 8) Deploy Backend (Workers)
 
 ```
 pnpm --filter @slf/backend exec wrangler deploy --env production
 ```
 
-## 8) Deploy Frontend (Pages)
+## 9) Deploy Frontend (Pages)
 
 Create a Pages project with:
 
@@ -126,9 +157,12 @@ Create a Pages project with:
 
 ## API Endpoints
 
+All endpoints are protected by Clerk auth.
+
 - `POST /upload` (multipart/form-data, field: `file`)
 - `GET /subscriptions`
 - `GET /summary`
+- `GET /health`
 
 ## CSV Format
 
@@ -140,9 +174,31 @@ date, description, amount
 
 ## Detection Rules
 
-The recurring detection is rule?based:
+The recurring detection is rule-based:
 
-- Merchant similarity (token?based)
-- Amount tolerance ?5%
+- Merchant similarity (token-based)
+- Amount tolerance �5%
 - Repeats at least 2 times
-- Monthly interval between 25?35 days
+- Monthly interval between 25�35 days
+
+## Troubleshooting
+
+### D1_ERROR: no such table
+
+Run the migration again (remote):
+
+```
+pnpm --filter @slf/backend exec wrangler d1 execute subscription_leak_finder --remote --file ../../packages/db/migrations/0000_init.sql
+```
+
+### Local D1 missing tables
+
+Run without `--remote` (local):
+
+```
+pnpm --filter @slf/backend exec wrangler d1 execute subscription_leak_finder --file ../../packages/db/migrations/0000_init.sql
+```
+
+---
+
+If anything is unclear or breaks, ping me with the exact command and output.

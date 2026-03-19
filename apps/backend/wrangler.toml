@@ -14,7 +14,17 @@ bucket_name = "subscription-leak-finder-uploads"
 [env.dev.vars]
 CORS_ORIGIN = "http://localhost:5173"
 
+[[env.dev.d1_databases]]
+binding = "DB"
+database_name = "subscription_leak_finder"
+database_id = "eeb1daad-be8e-48fd-b5ea-ad1b6234ff44"
+
+[[env.dev.r2_buckets]]
+binding = "UPLOADS"
+bucket_name = "subscription-leak-finder-uploads"
+
 [env.production]
+name = "subscription-leak-finder"
 workers_dev = true
 
 [env.production.vars]

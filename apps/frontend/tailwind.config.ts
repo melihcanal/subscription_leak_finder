@@ -1,7 +1,12 @@
-import type { Config } from "tailwindcss";
+import type {Config} from "tailwindcss";
+import {heroui} from "@heroui/theme";
 
 export default {
-  content: ["./index.html", "./src/**/*.{ts,tsx}"],
+    content: [
+        "./index.html",
+        "./src/**/*.{ts,tsx}",
+        "./node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}"
+    ],
   theme: {
     extend: {
       colors: {
@@ -20,5 +25,5 @@ export default {
       }
     }
   },
-  plugins: []
+    plugins: [heroui()]
 } satisfies Config;
